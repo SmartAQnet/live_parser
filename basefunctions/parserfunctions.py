@@ -23,8 +23,8 @@ def tryfloat(expr):
 
 
 # Get Database Info
-# Get Thing entry via operator domain and its serial number
-def getThingFromProperties(url, domain, serialno):
+# Get Thing entry via any properties passed to kwargs as **{key: value}
+def getThingFromProperties(url, **kwargs):
 
     # initialize a request session (retries 3, backoff factor 2)
     sess = requestfunc.session(3, 2)
@@ -33,13 +33,18 @@ def getThingFromProperties(url, domain, serialno):
     if(url[-1] == "/"):
         url = url[:-1]
 
-    getlink = url + "/Things?$filter=properties/operator.domain eq " + "'" + domain + "'" + " and properties/hardware.id eq " + "'" + serialno + "'"
+    getlink = url + "/Things?$filter="
+    
+    for arg in kwargs:
+        getlink += "properties/" + arg + " eq " + "'" + kwargs.get(arg) + "'" + " and "
+    
+    getlink = getlink[:-5]
 
     # try three times, sometimes the server loses a request
     matchingsaqnthings = json.loads(sess.get(getlink).text)["value"]
 
-    assert (len(matchingsaqnthings) <= 1), "error: multiple devices in db with same hardware.id: " + serialno
-    assert (len(matchingsaqnthings) != 0), "error: no device in db with this hardware.id: " + serialno
+    assert (len(matchingsaqnthings) <= 1), "error: multiple devices in db matching specifications"
+    assert (len(matchingsaqnthings) != 0), "error: no device in db matching specifications"
     res = matchingsaqnthings[0]
 
     return res
