@@ -33,6 +33,7 @@ def getThingFromProperties(url, **kwargs):
     if(url[-1] == "/"):
         url = url[:-1]
 
+    # construct query for any requested properties
     getlink = url + "/Things?$filter="
     
     for arg in kwargs:
@@ -158,6 +159,7 @@ def postObservations(targetdatastream, dfred):
             # add FeatureOfInterest
             gps = []
 
+            # lat and lon are mandatory, thus if an error happens (some typo), skip to the next iteration (=line)
             try:
                 gps.append(float(row["lon"].replace("E", "").replace(",", ".")))
                 gps.append(float(row["lat"].replace("N", "").replace(",", ".")))
@@ -167,11 +169,16 @@ def postObservations(targetdatastream, dfred):
             except ValueError as ve:
                 print("Could not convert " + ve + " to Float")
                 continue
+            except AttributeError as ae:
+                print(ae)
+                continue
             try:
                 gps.append(float(row["alt"].replace("H", "").replace(",", ".")))
             except KeyError:
                 pass  # altitude is optional
             except ValueError:
+                pass
+            except AttributeError:
                 pass
 
             observation["FeatureOfInterest"] = {

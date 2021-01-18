@@ -176,6 +176,8 @@ def formatDataframe(df, filepath):
             headerlist[3]: "saqn:op:mcpm10",
             headerlist[4]: "saqn:op:mcpm2p5",
             headerlist[5]: "saqn:op:mcpm1",
+            headerlist[31]: "saqn:op:ta",
+            headerlist[33]: "saqn:op:hur",
             headerlist[35]: "lon",
             headerlist[36]: "lat",
             headerlist[37]: "alt",
