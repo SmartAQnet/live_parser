@@ -17,6 +17,7 @@ dag = DAG(
     dag_id="Grimm",
     default_args=default_args,
     description="Download Data from ftp server and parse",
+    # max_active_runs=1, # configured as default in airflow.cfg
     schedule_interval='5,35 * * * *'
 )
 
@@ -25,5 +26,7 @@ parse_historic = PapermillOperator(
     dag=dag,
     input_nb="/usr/local/airflow/live_parser/grimm_liveparser.ipynb",
     output_nb="/usr/local/airflow/live_parser/result.ipynb",
-    parameters="dict(parameter_thing='SN19006', parameter_mode='historic')"
+    parameters=""
 )
+
+# parameters="dict(parameter_thing='SN19006', parameter_mode='historic')"
