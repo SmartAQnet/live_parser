@@ -23,15 +23,7 @@ dag = DAG(
 parse_historic = PapermillOperator(
     task_id="historic_parser",
     dag=dag,
-    input_nb="/home/ubuntu/docker-airflow/live_parser/grimm_liveparser.ipynb",
-    output_nb="/home/ubuntu/docker-airflow/live_parser/result.ipynb",
+    input_nb="/usr/local/airflow/live_parser/grimm_liveparser.ipynb",
+    output_nb="/usr/local/airflow/live_parser/result.ipynb",
     parameters="dict(parameter_thing='SN19006', parameter_mode='historic')"
-)
-
-parse_live = PapermillOperator(
-    task_id="live_parser",
-    dag=dag,
-    input_nb="/home/ubuntu/docker-airflow/live_parser/grimm_liveparser.ipynb",
-    output_nb="/home/ubuntu/docker-airflow/live_parser/result.ipynb",
-    parameters="dict(parameter_thing='SN19006', parameter_mode='live')"
 )
