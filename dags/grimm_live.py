@@ -1,6 +1,6 @@
 from __future__ import print_function
 from builtins import range
-from airflow.operators import PythonOperator
+from airflow.operators.python_operator import PythonOperator
 from airflow.models import DAG
 from datetime import datetime, timedelta
 
@@ -15,10 +15,10 @@ from statistics import mode
 import datetime as dt
 from joblib import delayed, Parallel
 
-from basefunctions import ftpfunction as ftpfunc
-from basefunctions import parserfunctions as pf
-from basefunctions import grimmfunctions as grimm
-from basefunctions import requestfunction as requestfunc
+from live_parser.basefunctions import ftpfunction as ftpfunc
+from live_parser.basefunctions import parserfunctions as pf
+from live_parser.basefunctions import grimmfunctions as grimm
+from live_parser.basefunctions import requestfunction as requestfunc
 
 # local file that is not checked into github, containing the target credentials where to parse data from
 import saqncredentials

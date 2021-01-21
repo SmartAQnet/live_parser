@@ -165,8 +165,8 @@ def postObservations(targetdatastream, dfred):
 
                 # lat and lon are mandatory, thus if an error happens (some typo), skip to the next iteration (=line)
                 try:
-                    gps.append(float(row["lon"].replace("E", "").replace(",", ".")))
-                    gps.append(float(row["lat"].replace("N", "").replace(",", ".")))
+                    gps.append(float(str(row["lon"]).replace("E", "").replace(",", ".")))
+                    gps.append(float(str(row["lat"]).replace("N", "").replace(",", ".")))
                 except KeyError as ke:
                     print("Key " + ke + " not found")
                     continue
@@ -177,7 +177,7 @@ def postObservations(targetdatastream, dfred):
                     print(ae)
                     continue
                 try:
-                    gps.append(float(row["alt"].replace("H", "").replace(",", ".")))
+                    gps.append(float(str(row["alt"]).replace("H", "").replace(",", ".")))
                 except KeyError:
                     pass  # altitude is optional
                 except ValueError:
