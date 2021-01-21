@@ -1,7 +1,7 @@
 import json
 import requests
 import pandas as pd
-import basefunctions.ftpfunction as gf
+import live_parser.basefunctions.ftpfunction as gf
 
 
 # function that gets a file from the grimm ftp server when given a filepath

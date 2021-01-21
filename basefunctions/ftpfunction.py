@@ -3,7 +3,7 @@ from ftplib import all_errors
 from io import StringIO
 from time import sleep
 
-import saqncredentials
+from live_parser import saqncredentials
 
 server = saqncredentials.grimm.server
 user = saqncredentials.grimm.user

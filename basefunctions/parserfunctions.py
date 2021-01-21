@@ -1,6 +1,6 @@
 import hashlib
 import json
-import basefunctions.requestfunction as requestfunc
+import live_parser.basefunctions.requestfunction as requestfunc
 import pandas as pd
 
 
@@ -127,7 +127,7 @@ def postObservations(targetdatastream, dfred):
     dfred[obsprop] = dfred[obsprop].map(lambda x: tryfloat(str(x).replace(",", ".")))
 
     # observation counter for checking
-    oc = {"success": 0, "failed": 0}
+    oc = {}
 
     if(len(dfred) > 0):
         for index, row in dfred.iterrows():
@@ -206,12 +206,20 @@ def postObservations(targetdatastream, dfred):
 
                 req = sess.post(targetdatastream["@iot.selfLink"] + "/Observations", json.dumps(observation))
 
-                if((req.status_code == 200) or (req.status_code == 201)):
-                    oc["success"] += 1
-                elif(req.status_code >= 400):
-                    oc["failed"] += 1
-                else:
-                    raise SystemExit("Observation Post Status " + str(req.status_code))
+                code = str(req.status_code)
+                if(code not in oc.keys()):
+                    oc[code] = 0
+                
+                oc[code] += 1
+
+                # if((req.status_code == 200) or (req.status_code == 201)):
+                #     oc["success"] += 1
+                # elif(req.status_code == 500):
+                #     oc["exists already"] += 1
+                # elif(req.status_code >= 400):
+                #     oc["failed"] += 1
+                # else:
+                #     raise SystemExit("Observation Post Status " + str(req.status_code))
             
             except: 
                 if(failcount>=3):
