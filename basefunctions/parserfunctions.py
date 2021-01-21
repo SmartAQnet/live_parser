@@ -206,7 +206,7 @@ def postObservations(targetdatastream, dfred):
 
                 req = sess.post(targetdatastream["@iot.selfLink"] + "/Observations", json.dumps(observation))
 
-                code = str(req.status_code)
+                code = "Status Code: " + str(req.status_code)
                 if(code not in oc.keys()):
                     oc[code] = 0
                 
