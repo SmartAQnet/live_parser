@@ -1,18 +1,12 @@
-from __future__ import print_function
-from builtins import range
 from airflow.operators.python_operator import PythonOperator
 from airflow.models import DAG
 from datetime import datetime, timedelta
-
-import time
-from pprint import pprint
 
 import pandas as pd
 import json
 import requests
 import re
 from statistics import mode
-import datetime as dt
 from joblib import delayed, Parallel
 
 from live_parser.basefunctions import ftpfunction as ftpfunc
@@ -108,19 +102,10 @@ def parse_live(thing, **kwargs):
         except: 
             print("failed at file: " + filepath)
 
-def my_sleeping_function(random_base):
-    '''This is a function that will run within the DAG execution'''
-    time.sleep(random_base)
-
-
-def print_context(ds, **kwargs):
-    pprint(kwargs)
-    print(ds)
-    return 'Whatever you return gets printed in the logs'
 
 # OPERATORS/TASKS
 
-for edm80opc in ['SN19006']: # EDM80OPCs:
+for edm80opc in ['SN19001','SN19002','SN19003','SN19004','SN19005','SN19006']: # EDM80OPCs:
     '''
     Create Tasks to parse all EDM80OPC devices
     '''
