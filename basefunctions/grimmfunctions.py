@@ -1,7 +1,70 @@
 import json
 import requests
 import pandas as pd
-import live_parser.basefunctions.ftpfunction as gf
+
+from ftplib import FTP
+from ftplib import all_errors
+from io import StringIO
+from time import sleep
+
+from live_parser import saqncredentials
+
+
+# function that calls the Grimm ftp server
+server = saqncredentials.grimm.server
+user = saqncredentials.grimm.user
+pw = saqncredentials.grimm.pw
+
+def ftp_getData(path=None, retry=True):
+
+    try:
+        if(path is None):
+            ftp = FTP(server)
+            ftp.login(user, pw)
+            res = ftp.nlst()
+
+        elif(len(path.split("/")) == 1):
+            [folder] = path.split("/")
+            ftp = FTP(server)
+            ftp.login(user, pw)
+            ftp.cwd(folder)
+            res = ftp.nlst()
+            res.sort()
+
+        elif(len(path.split("/")) == 2):
+            [folder, thing] = path.split("/")
+            ftp = FTP(server)
+            ftp.login(user, pw)
+            ftp.cwd(folder + "/" + thing)
+            res = ftp.nlst()
+            res.sort()
+
+        elif(len(path.split("/")) == 3):
+            [folder, thing, file] = path.split("/")
+
+            def customWriter(line):
+                r.write(line + "\n")
+
+            ftp = FTP(server)
+            ftp.login(user, pw)
+            ftp.cwd(folder + "/" + thing)
+            r = StringIO()
+            ftp.retrlines('RETR ' + file, customWriter)
+            res = r.getvalue()
+            r.close()
+        ftp.quit()
+
+    except all_errors:
+        if(retry):
+            sleep(5)
+            print("too many ftp connections, trying again")
+            res = getData(path, False)
+        else:
+            print("failed to connect ftp again, aborting.")
+            return []
+
+    return res
+
 
 
 # function that gets a file from the grimm ftp server when given a filepath
@@ -10,7 +73,7 @@ import live_parser.basefunctions.ftpfunction as gf
 def parseGrimmFile(filepath):
 
     try:
-        content = gf.getData(filepath)
+        content = ftp_getData(filepath)
         [header, body] = content.split("***begin of header***\n")[1].split("\n***end of header***\n")
 
         headerlist = header.split(";")
@@ -71,19 +134,22 @@ def formatDataframe(df, filepath):
         throwColumnError("utc datetime")
 
     # Check and convert UTC Time Column
-    try:
-        # remove rows with falsy/empty entries in the UTC column
-        dfred = df[df[utckey].astype(bool)]
-    except:  # using except only to see where stuff went wrong. exit anyway
-        raise SystemExit("UTC Timestamp Column Error. Aborting.")
+    # convert utc to timestamp
+    df[utckey] = pd.to_datetime(df[utckey], utc=True, errors="coerce")
 
-    else:
-        # convert utc to timestamp
-        dfred[utckey] = dfred[utckey].map(lambda x: pd.to_datetime(x, utc=True))
-        # set as index
-        dfred = dfred.set_index(utckey, drop=False).sort_index()
-        # convert utc time column into same format as saqn server
-        dfred[utckey] = dfred[utckey].map(lambda x: x.strftime(timeformat))
+    # remove faulty lines
+    dfred = df[~df[utckey].isnull()].copy()
+    df_errors = df[df[utckey].isnull()]
+
+    if(len(df_errors)>0):
+        print("Lines with UTC Date Time Errors: " + str(len(df_errors)))
+        print("These Lines will be skipped.")
+
+    # set as index
+    dfred = dfred.set_index(utckey, drop=False).sort_index()
+    # convert utc time column into same format as saqn server
+    dfred[utckey] = dfred[utckey].apply(lambda x: x.strftime(timeformat))
+
 
     # get keys from positions where they are supposed to be
     if(devicetype == "EDM164OPC"):

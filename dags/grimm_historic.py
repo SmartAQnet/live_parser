@@ -7,9 +7,7 @@ import json
 import requests
 import re
 from statistics import mode
-from joblib import delayed, Parallel
 
-from live_parser.basefunctions import ftpfunction as ftpfunc
 from live_parser.basefunctions import parserfunctions as pf
 from live_parser.basefunctions import grimmfunctions as grimm
 from live_parser.basefunctions import requestfunction as requestfunc
@@ -38,22 +36,30 @@ targeturl = "https://api.smartaq.net/v1.0"
 operatordomain = "grimm-aerosol.com"
 folder_h = saqncredentials.grimm.folder_historic # folder from where to parse historic data as specified in saqncredentials.py
 folder_l = saqncredentials.grimm.folder_live # folder from where to parse historic data as specified in saqncredentials.py
+folder_f = 'live' # old folder as fallback when data is missing
 
-allthings_h = ftpfunc.getData(folder_h) # list of all things available in the folder
-allthings_l = ftpfunc.getData(folder_l) # list of all things available in the folder
+allthings_h = grimm.ftp_getData(folder_h) # list of all things available in the folder
+allthings_l = grimm.ftp_getData(folder_l) # list of all things available in the folder
+allthings_f = grimm.ftp_getData(folder_f) # list of all things available in the folder
 
 # recognize the device types EDM80OPC, EDM80NEPH and EDM164OPC
 EDM80OPCpattern=re.compile("(SN19[0-9]{3})")
 EDM80OPCs_h = list(filter(EDM80OPCpattern.match,allthings_h))
 EDM80OPCs_l = list(filter(EDM80OPCpattern.match,allthings_l))
+EDM80OPCs_f = list(filter(EDM80OPCpattern.match,allthings_f))
 
 EDM80NEPHpattern=re.compile("(SN17[0-9]{3})")
 EDM80NEPHs_h = list(filter(EDM80NEPHpattern.match,allthings_h))
 EDM80NEPHs_l = list(filter(EDM80NEPHpattern.match,allthings_l))
+EDM80NEPHs_f = list(filter(EDM80NEPHpattern.match,allthings_f))
 
 EDM164OPCpattern=re.compile("(OPC-[0-9]{3})")
 EDM164OPCs_h = list(filter(EDM164OPCpattern.match,allthings_h))
 EDM164OPCs_l = list(filter(EDM164OPCpattern.match,allthings_l))
+EDM164OPCs_f = list(filter(EDM164OPCpattern.match,allthings_f))
+
+def EDM80OPC_file_pattern(edm80opc):
+    return re.compile("([0-9]{4}-[0-9]{2}-[0-9]{2}-" + edm80opc + "-measure.dat)")
 
 
 
@@ -77,13 +83,19 @@ def parse_file(folder, thing, datfile, **kwargs):
     saqndatastreams = json.loads(sess.get(saqnthing["Datastreams@iot.navigationLink"] + "?$expand=ObservedProperty").text)["value"]
 
     # for each datastream, check for missing observations
-    res=Parallel(n_jobs=2)(delayed(pf.post_difference)(targetdatastream,df_formatted) for targetdatastream in saqndatastreams)
-    print("success at file: " + filepath + " --- result: ")
-    print(res)
-
+    # res=Parallel(n_jobs=2)(delayed(pf.post_difference)(targetdatastream,df_formatted) for targetdatastream in saqndatastreams)
+    print("Posting from file: " + filepath + " --- results: ")
+    for targetdatastream in saqndatastreams:
+        symmdiff = pf.getSymmDiff(targetdatastream,df_formatted)
+        print("Datastream observing property: " + targetdatastream["ObservedProperty"]["@iot.id"])
+        if(len(symmdiff) > 0):
+            res = pf.postObservations(targetdatastream, symmdiff)
+            print(res)
+        else:
+            print("all observations already in database")
 
 # function that creates a dag with its tasks
-def create_dag(dag_id, folder, edm80opc):
+def create_dag(dag_id, folder, tasklist, edm80opc):
 
     dagOPC = DAG(
         dag_id=dag_id, 
@@ -94,10 +106,8 @@ def create_dag(dag_id, folder, edm80opc):
 
     with dagOPC:
         dagOPC.doc_md = dag_hist_doc(edm80opc) # Markdown Documentation for the DAG
-        files = ftpfunc.getData(folder + "/" + edm80opc) 
-        files.sort()
 
-        for datfile in files: 
+        for datfile in tasklist: 
             '''
             Create Tasks to parse all files
             '''
@@ -129,13 +139,43 @@ def dag_hist_doc(device):
 
 # loop that creates a dag with its tasks for each device
 # for some reason, looping over too much at once produces a timeout. Possibly impatient with the ftp requests. 
-for edm80opc in EDM80OPCs_h[:10]:
+for edm80opc in EDM80OPCs_h[26:32]:
+
+    # historic folder files
+    files_h = grimm.ftp_getData(folder_h + "/" + edm80opc) 
+    files_h = list(filter(EDM80OPC_file_pattern(edm80opc).match,files_h))
+    files_h.sort()
+
+
     dag_id = 'EDM80OPC_'+edm80opc+'_historic_Parser'
-    globals()[dag_id] = create_dag(dag_id,folder_h,edm80opc)
+    globals()[dag_id] = create_dag(dag_id,folder_h,files_h,edm80opc)
 
     if(edm80opc in EDM80OPCs_l): # if there is any data after the official project end, parse that too
+
+        # live folder files
+        files_l = grimm.ftp_getData(folder_l + "/" + edm80opc) 
+        files_l = list(filter(EDM80OPC_file_pattern(edm80opc).match,files_l))
+        files_l = list(set(files_l) - set(files_h)) # only retain files/days which are not present in the main historic folder
+        files_l.sort()
+
         dag_id = 'EDM80OPC_'+edm80opc+'_historic_to_live_Parser'
-        globals()[dag_id] = create_dag(dag_id,folder_l,edm80opc)
+        globals()[dag_id] = create_dag(dag_id,folder_l,files_l,edm80opc)
+    else:
+        files_l = []
+
+
+    if(edm80opc in EDM80OPCs_f): # check with fallback folder if there is any data missing
+
+        # fallback folder files
+        files_f = grimm.ftp_getData(folder_f + "/" + edm80opc) 
+        files_f = list(filter(EDM80OPC_file_pattern(edm80opc).match,files_f)) # 
+        files_f = list(set(files_f) - set(files_h + files_l)) # only retain files/days which are not present in other folders
+        files_f.sort()
+
+        dag_id = 'EDM80OPC_'+edm80opc+'_additional_fill'
+        globals()[dag_id] = create_dag(dag_id,folder_f,files_f,edm80opc)
+
+
 
 
 # for edm80opc in EDM80OPCs[10:20]:

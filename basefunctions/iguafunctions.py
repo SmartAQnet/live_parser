@@ -1,7 +1,6 @@
 import json
 import requests
 import pandas as pd
-import live_parser.basefunctions.ftpfunction as gf
 import datetime
 import numpy as np
 

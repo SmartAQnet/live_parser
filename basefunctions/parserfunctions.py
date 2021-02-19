@@ -21,6 +21,24 @@ def tryfloat(expr):
     except:
         return None
 
+# function that follows nextlinks to get all observations of a query
+def get_all_obs(link):
+
+    # initialize a request session (retries 3, backoff factor 2)
+    sess = requestfunc.session(3, 2)
+    
+    obslist = []
+    
+    while link:
+        req = json.loads(sess.get(link).text)
+        obslist += req["value"]
+        try:
+            link = req["@iot.nextLink"]
+        except:
+            link = False
+            
+    return obslist
+
 
 # Get Database Info
 # Get Thing entry via any properties passed to kwargs as **{key: value}
@@ -59,9 +77,6 @@ def getThingFromProperties(url, **kwargs):
 # 2. the dataframe of observations from the parsed file
 def getSymmDiff(targetdatastream, dfred):
 
-    # initialize a request session (retries 3, backoff factor 2)
-    sess = requestfunc.session(3, 2)
-
     # time format used in strftime conversion
     timeformat = '%Y-%m-%d' + 'T' + '%H:%M:%S' + '.000Z'
 
@@ -83,7 +98,7 @@ def getSymmDiff(targetdatastream, dfred):
 
     # get information from database and construct a dataframe from the existing data
     targetquery = targetdatastream["Observations@iot.navigationLink"] + "?$filter=resultTime ge " + startiso + " and resultTime le " + endiso
-    obslist = json.loads(sess.get(targetquery).text)["value"]
+    obslist = get_all_obs(targetquery)
     obsdf = pd.DataFrame(
         data=list(
             map(lambda x: [pd.to_datetime(x["resultTime"]), x["result"]], obslist)
@@ -92,7 +107,7 @@ def getSymmDiff(targetdatastream, dfred):
         ).set_index("resultTime").sort_index()
 
     # get the symmetric difference of the saqn database slice and the grimm ftp slice
-    symmdiff = pd.concat([dfred, obsdf])
+    symmdiff = pd.concat([dfred, obsdf], sort=False)
     symmdiff = symmdiff[~symmdiff.index.duplicated(keep=False)]
 
     return symmdiff
