@@ -139,7 +139,7 @@ def dag_hist_doc(device):
 
 # loop that creates a dag with its tasks for each device
 # for some reason, looping over too much at once produces a timeout. Possibly impatient with the ftp requests. 
-for edm80opc in EDM80OPCs_h[26:32]:
+for edm80opc in EDM80OPCs_h[0:0]: # take list range [0:0] to switch off dags
 
     # historic folder files
     files_h = grimm.ftp_getData(folder_h + "/" + edm80opc) 
