@@ -13,30 +13,17 @@ from live_parser.basefunctions import requestfunction as requestfunc
 # local file that is not checked into github, containing the target credentials where to parse data from
 # import saqncredentials
 
-seven_days_ago = datetime.combine(
-        datetime.today() - timedelta(7), datetime.min.time())
-
-args = {
-    'owner': 'teco', # required
-    'depends_on_past': False, # success of the previous run of this task
-    'start_date': seven_days_ago, # required, catchup is turned off in airflow.cfg
-    'email': ['tremper@teco.edu'],
-    'retries': 1
-}
-
-dag = DAG(
-    dag_id='UBA_Live_Parser', 
-    default_args=args,
-    description="Download and parse data from the UBA API",
-    schedule_interval='15 * * * *' # at :15 every hour
-)
+# -----------------
 
 # FUNCTIONS
 
 targeturl = "https://api.smartaq.net/v1.0"
 operatordomain = "umweltbundesamt.de"
 
+# uba_stations = json.loads(requests.get("https://api.smartaq.net/v1.0/Things?$filter=properties/operator.domain eq 'umweltbundesamt.de'").text)["value"]
+# station_ids = [stat["properties"]["hardware.id"] for stat in uba_stations]
 
+station_ids = ["deby006", "deby007", "deby099", "deby110"]
 
 def parse_live(deby, **kwargs):
 
@@ -65,21 +52,34 @@ def parse_live(deby, **kwargs):
     for targetdatastream in saqndatastreams:
         symmdiff = pf.getSymmDiff(targetdatastream,df_formatted)
         print("Datastream observing property: " + targetdatastream["ObservedProperty"]["@iot.id"])
-            if(len(symmdiff) > 0):
-                res = pf.postObservations(targetdatastream, symmdiff)
-                print(res)
-            else:
-                print("no new observations to post")
+        if(len(symmdiff) > 0):
+            res = pf.postObservations(targetdatastream, symmdiff, FoI=False)
+            print(res)
+        else:
+            print("no new observations to post")
 
 
+# args and dags
 
+seven_days_ago = datetime.combine(
+        datetime.today() - timedelta(7), datetime.min.time())
+
+args = {
+    'owner': 'teco', # required
+    'depends_on_past': False, # success of the previous run of this task
+    'start_date': seven_days_ago, # required, catchup is turned off in airflow.cfg
+    'email': ['tremper@teco.edu'],
+    'retries': 1
+}
+
+dag = DAG(
+    dag_id='UBA_Live_Parser', 
+    default_args=args,
+    description="Download and parse data from the UBA API",
+    schedule_interval='15 * * * *' # at :15 every hour
+)
 
 # OPERATORS/TASKS
-
-uba_stations = json.loads(requests.get("https://api.smartaq.net/v1.0/Things?$filter=properties/operator.domain eq 'umweltbundesamt.de'").text)["value"]
-station_ids = [stat["properties"]["hardware.id"] for stat in uba_stations]
-
-# Hourly Tasks
 
 for stat_id in station_ids: 
     '''

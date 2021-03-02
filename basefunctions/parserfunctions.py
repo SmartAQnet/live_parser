@@ -120,7 +120,7 @@ def getSymmDiff(targetdatastream, dfred):
 #  navigation link to the things datastreams under the key "Datastreams@iot.navigationLink"
 # 2. the dataframe of observations from the parsed file
 # 3. the key dictionary that translates between the database keys of the thing and the dataframe of observations
-def postObservations(targetdatastream, dfred):
+def postObservations(targetdatastream, dfred, FoI=True):
 
     # initialize a request session (retries 3, backoff factor 2)
     sess = requestfunc.session(3, 2)
@@ -175,40 +175,41 @@ def postObservations(targetdatastream, dfred):
                     except ValueError:
                         print("couldn't read Observation parameters JSON")
 
-                # add FeatureOfInterest
-                gps = []
+                if(FoI==True):
+                    # add FeatureOfInterest
+                    gps = []
 
-                # lat and lon are mandatory, thus if an error happens (some typo), skip to the next iteration (=line)
-                try:
-                    gps.append(float(str(row["lon"]).replace("E", "").replace(",", ".")))
-                    gps.append(float(str(row["lat"]).replace("N", "").replace(",", ".")))
-                except KeyError as ke:
-                    print("Key " + ke + " not found")
-                    continue
-                except ValueError as ve:
-                    print("Could not convert " + ve + " to Float")
-                    continue
-                except AttributeError as ae:
-                    print(ae)
-                    continue
-                try:
-                    gps.append(float(str(row["alt"]).replace("H", "").replace(",", ".")))
-                except KeyError:
-                    pass  # altitude is optional
-                except ValueError:
-                    pass
-                except AttributeError:
-                    pass
+                    # lat and lon are mandatory, thus if an error happens (some typo), skip to the next iteration (=line)
+                    try:
+                        gps.append(float(str(row["lon"]).replace("E", "").replace(",", ".")))
+                        gps.append(float(str(row["lat"]).replace("N", "").replace(",", ".")))
+                    except KeyError as ke:
+                        print("Key " + ke + " not found")
+                        continue
+                    except ValueError as ve:
+                        print("Could not convert " + ve + " to Float")
+                        continue
+                    except AttributeError as ae:
+                        print(ae)
+                        continue
+                    try:
+                        gps.append(float(str(row["alt"]).replace("H", "").replace(",", ".")))
+                    except KeyError:
+                        pass  # altitude is optional
+                    except ValueError:
+                        pass
+                    except AttributeError:
+                        pass
 
-                observation["FeatureOfInterest"] = {
-                    "name": "n/a",
-                    "description": "n/a",
-                    "encodingType": "application/vnd.geo+json",
-                    "feature": {
-                        "type": "Point",
-                        "coordinates": gps
+                    observation["FeatureOfInterest"] = {
+                        "name": "n/a",
+                        "description": "n/a",
+                        "encodingType": "application/vnd.geo+json",
+                        "feature": {
+                            "type": "Point",
+                            "coordinates": gps
+                            }
                         }
-                    }
 
                 # generate iot.id
                 try:
