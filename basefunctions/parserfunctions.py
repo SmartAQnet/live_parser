@@ -156,23 +156,27 @@ def postObservations(targetdatastream, dfred, FoI=True):
                     "result": row[obsprop]
                     }
 
-                # check if a time resolution is given and set phenomenonTime as interval
+                # try if a phenomenonTime row is given
                 try:
-                    assert ("timeResolution" in dfred.keys()), "no time resolution given"
-                except AssertionError:
-                    observation["phenomenonTime"] = index.strftime(timeformat)
-                else:
-                    timeresunit = "s"  # assuming seconds as units
+                    observation["phenomenonTime"] = row["phenomenonTime"]
+                except KeyError:
+                    # if not, check if a time resolution is given and set phenomenonTime as interval
                     try:
-                        observation["phenomenonTime"] = (index - pd.Timedelta(row["timeResolution"] + timeresunit)).strftime(timeformat) + "/" + index.strftime(timeformat)
-                    except TypeError:
+                        assert ("timeResolution" in dfred.keys()), "no time resolution given"
+                    except AssertionError:
                         observation["phenomenonTime"] = index.strftime(timeformat)
+                    else:
+                        timeresunit = "s"  # assuming seconds as units
+                        try:
+                            observation["phenomenonTime"] = (index - pd.Timedelta(row["timeResolution"] + timeresunit)).strftime(timeformat) + "/" + index.strftime(timeformat)
+                        except TypeError:
+                            observation["phenomenonTime"] = index.strftime(timeformat)
 
                 # check if parameters are given (as json converted into a string)
                 if("parameters" in dfred.keys()):
                     try:
                         observation["parameters"] = json.loads(row["parameters"])
-                    except ValueError:
+                    except TypeError:
                         print("couldn't read Observation parameters JSON")
 
                 if(FoI==True):
