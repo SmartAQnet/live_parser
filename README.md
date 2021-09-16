@@ -1,56 +1,50 @@
-# live-parser
-This repository contains the live running code of the scripts that parse data for the SmartAQnet database
+# Airflow Log Cleanup
 
+A maintenance workflow that you can deploy into Airflow to periodically clean out the task logs to avoid those getting too big.
 
-## Basefunctions Library:
+- **airflow-log-cleanup.py**: Allows to delete logs by specifying the **number** of worker nodes. Does not guarantee log deletion of all nodes. 
+- **airflow-log-cleanup-pwdless-ssh.py**: Allows to delete logs by specifying the list of worker nodes by their hostname. Requires the `airflow` user to have passwordless ssh to access all nodes.
 
-### parserfunctions as pf:
+## Deploy
 
-#### pf.getThingFromProperties(url, domain, serialno)
+1. Login to the machine running Airflow
+2. Navigate to the dags directory
+3. Select the DAG to deploy (with or without SSH access) and follow the instructions
 
-function that uses url, operator domain and serialno as string inputs and returns the saqn database entry of the thing    
+### airflow-log-cleanup.py
 
-#### pf.post_difference(targetdatastream, dataframe)
+1. Copy the airflow-log-cleanup.py file to this dags directory
 
-wrapper function that executes getSymmDiff and postObservations in succession
+       a. Here's a fast way:
 
-#### pf.getSymmDiff(targetdatastream, dataframe)
+                $ wget https://raw.githubusercontent.com/teamclairvoyant/airflow-maintenance-dags/master/log-cleanup/airflow-log-cleanup.py
 
-function that checks a list of observations against existing observations in the database by timestamp input is targetdatastream, dataframe. returns an equally formatted, reduced dataframe of missing observations
+2. Update the global variables (SCHEDULE_INTERVAL, DAG_OWNER_NAME, ALERT_EMAIL_ADDRESSES, ENABLE_DELETE and NUMBER_OF_WORKERS) in the DAG with the desired values
 
-#### pf.postObservations(targetdatastream, dataframe)
+3. Create and Set the following Variables in the Airflow Web Server (Admin -> Variables)
 
-function that posts observations to the server. returns a dictionary of counts of successfull and failed posts
+    - airflow_log_cleanup__max_log_age_in_days - integer - Length to retain the log files if not already provided in the conf. If this is set to 30, the job will remove those files that are 30 days old or older.
+    - airflow_log_cleanup__enable_delete_child_log - boolean (True/False) - Whether to delete files from the Child Log directory defined under [scheduler] in the airflow.cfg file
 
-### grimmfunctions as grimm:
+4. Enable the DAG in the Airflow Webserver
 
-#### grimm.parseGrimmFile(filepath)
+### airflow-log-cleanup-pwdless-ssh.py ###
 
-function that grabs a file from the ftp server when given a path and parses it, returning a dataframe
+1. Copy the airflow-log-cleanup-pwdless-ssh.py file to this dags directory
 
-#### grimm.formatDataframe(df,filepath)
+       a. Here's a fast way:
 
-function that formats the dataframe such that column heads are identical to saqn observedproperty iot.ids input is dataframe, filepath (to identify device type)
+                $ wget https://raw.githubusercontent.com/teamclairvoyant/airflow-maintenance-dags/master/log-cleanup/airflow-log-cleanup-pwdless-ssh.py
 
----
+2. Update the global variables (SCHEDULE_INTERVAL, DAG_OWNER_NAME, ALERT_EMAIL_ADDRESSES, ENABLE_DELETE and AIRFLOW_HOSTS) in the DAG with the desired values
 
----
+3. Create and Set the following Variables in the Airflow Web Server (Admin -> Variables)
 
-    
-### OLD, not included
+    - airflow_log_cleanup__max_log_age_in_days - integer - Length to retain the log files if not already provided in the conf. If this is set to 30, the job will remove those files that are 30 days old or older.
+    - airflow_log_cleanup__enable_delete_child_log - boolean (True/False) - Whether to delete files from the Child Log directory defined under [scheduler] in the airflow.cfg file
 
-#### grimm.updateSoftwareNo(inputline,datastream)
+4. Ensure the `airflow` user can passwordless SSH on the hosts listed in `AIRFLOW_HOSTS`
+   1. Create a public and private key SSH key on all the worker nodes. You can follow these instructions: https://www.digitalocean.com/community/tutorials/how-to-set-up-ssh-keys--2
+   2. Add the public key content to the ~/.ssh/authorized_keys file on all the other machines
 
-function that checks the ["properties"]["software_version"] field of a datastream with a new input of the form pd.Series({pandas timestamp, value}). mutates the datastream object (shallow copy!) and performs a patch request if necessary. returns the datastream so datastream=grimm.updateSoftwareNo(inputline,datastream) makes sense although the shallow copy should mutate it anyway
-
---> probably belongs to pf library as it is not grimm specific
-
----
-
----
-
-### TODO
-
-- last calibration time to utc so that it is captured by the post function
-- statistical algorithm to extract the real FoIs from the raw, noisy FoIs if necessary
-- script to generate historical locations from FoI and vice versa if necessary
+5.  Enable the DAG in the Airflow Webserver
